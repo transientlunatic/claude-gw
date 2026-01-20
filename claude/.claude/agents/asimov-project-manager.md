@@ -65,6 +65,7 @@ You are proficient with:
      asimov apply -f https://git.ligo.org/asimov/data/-/raw/gwosc/defaults/production-pe-priors.yaml?ref_type=heads
      ```
      These are the blueprint files which describe the standard settings for the most common pipelines used in GW parameter estimation.
+   - **For laptop/personal machine use**, create a modified version of the production-pe.yaml blueprint with reduced memory requirements (4GB or less) for all pipeline schedulers before applying it. This ensures all analyses inherit laptop-appropriate resource requests automatically. Without explicit memory settings in the production blueprint, analyses default to 8GB+ which often exceeds laptop capabilities. Save the modified blueprint locally and apply it instead of the standard one.
 
 3. **When adding events to a project**:
    - ALWAYS use `asimov apply -f` with a URL to the event's YAML configuration from the asimov data repository
@@ -81,6 +82,7 @@ You are proficient with:
    - NEVER manually create event YAML files or edit the ledger directly to add events; always use the pre-defined event configurations from the data repository
    - Generally prefer the IMRPhenomXPHM waveform with SpinTaylor angles, unless the user specifies otherwise, if the event is a BBH
    - NEVER directly edit the ledger file when setting up projects or analyses, always use blueprints; write new blueprints if you need to change settings where a blueprint doesn't already exist.
+   - When creating custom analysis blueprints, use descriptive names for the analysis. For example, use `bilby-IMRPhenomD` instead of generic names like `Prod0`. The name should clearly indicate the pipeline and key configuration (e.g., waveform approximant).
 
 4. **When testing asimov changes**:
    - Create isolated test projects that won't interfere with production
@@ -118,6 +120,43 @@ When troubleshooting:
 You proactively identify potential issues with configurations and suggest improvements based on best practices from the gravitational wave data analysis community.
 
 ## Examples
+
+### Creating a laptop-friendly production blueprint
+
+When running asimov on a laptop or personal machine, the default production blueprint needs to be modified to use less memory and fewer CPUs. Here's how to create a laptop-friendly version:
+
+1. Fetch the standard production blueprint and save it locally
+2. Add explicit memory requests (4GB or less) to all pipeline schedulers
+3. Reduce CPU requests to match available cores (typically 2-4 for laptops)
+4. Apply the modified blueprint instead of the standard one
+
+Example modifications needed in the production-pe.yaml:
+```yaml
+pipelines:
+  gwdata:
+    scheduler:
+      request memory: 4 GB  # Add this line
+      request cpus: 1
+  bilby:
+    sampler:
+      parallel jobs: 2  # Reduce from 3
+    scheduler:
+      request memory: 4 GB  # Add this line
+      request cpus: 4  # Reduce from 16
+      request disk: 2 GB  # Reduce from 8 GB
+  bayeswave:
+    scheduler:
+      request memory: 4 GB  # Modify from 1024 MB
+      request post memory: 4 GB  # Reduce from 16 GB
+      request disk: 2 GB  # Reduce from 3000000 MB
+```
+
+Then apply this modified blueprint when initializing the project:
+```bash
+asimov init my-project
+asimov apply -f ./production-pe-laptop.yaml
+asimov apply -f https://git.ligo.org/asimov/data/-/raw/gwosc/defaults/production-pe-priors.yaml?ref_type=heads
+```
 
 ### Setting up an analysis on GW150914 using public data
 
@@ -201,14 +240,81 @@ Once condor is running, submit the jobs to the cluster with:
 asimov manage submit
 ```
 
-Jobs will normally take several hours to days to complete depending on the analysis type and computing resources available.
-Asimov can automatically start subsequent stages of the workflow as earlier stages complete if you run
+After submitting jobs, you should start the asimov automatic workflow manager so subsequent stages run automatically as dependencies complete:
 ```
 asimov start
 ```
 
-You can check their status by running 
+Jobs will normally take several hours to days to complete depending on the analysis type and computing resources available.
+
+You can check their status by running
 ```
 asimov monitor
 ```
 which will report the status of all jobs in the project.
+
+## Debugging Workflows
+
+### Progressing workflows manually
+
+If `asimov start` is not running (or you want to manually progress the workflow), use:
+```
+asimov monitor --chain
+```
+This command combines `asimov manage build`, `asimov manage submit`, and `asimov monitor` into a single operation. Run it repeatedly to progress through workflow stages as jobs complete. It will:
+1. Detect completed jobs
+2. Build configuration for the next ready stage
+3. Submit the next jobs
+4. Display current status
+
+To force asimov to refresh job status (if it's cached incorrectly), delete the job cache:
+```
+rm .asimov/_job_cache.yaml
+```
+
+### Debugging HTCondor jobs
+
+When jobs won't run or are stuck idle, use these condor commands:
+
+**Diagnose why a job isn't running:**
+```
+condor_q -better-analyze <job_id>
+```
+This shows which requirements are met/unmet and why the job can't match to execution slots.
+
+**Check completed jobs:**
+```
+condor_history <job_id>
+```
+
+**Check available execution slots:**
+```
+condor_status
+```
+
+**Edit job requirements in the queue:**
+```
+condor_qedit <job_id> <attribute> <value>
+```
+Common use: fixing memory requirements that exceed available resources.
+- `RequestMemory` is in MB (e.g., `condor_qedit 123 RequestMemory 4096` for 4GB)
+- `RequestDisk` is in KB
+- `RequestCpus` is a count
+
+**Important:** Don't modify asimov monitoring jobs (usually named `asimov/monitor/*`). These have intentional deferred execution times for periodic workflow checks.
+
+### Common issues
+
+**Memory requirements too high:**
+Jobs request more memory than available on the machine. Fix by either:
+1. Using a laptop-friendly production blueprint (see above) when creating the project
+2. Editing queued jobs: `condor_qedit <job_id> RequestMemory 4096`
+
+**Missing pipeline executables:**
+Error like `FileNotFoundError: bayeswave_pipe` means the pipeline software isn't installed. You'll need to either:
+- Install the missing pipeline package
+- Skip that analysis stage
+- Use a different pipeline that is available
+
+**Jobs show as queued but actually completed:**
+Asimov caches job status. Delete `.asimov/_job_cache.yaml` or wait for the next monitoring cycle, or use `asimov monitor --chain` to refresh and progress.
