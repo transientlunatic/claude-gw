@@ -116,3 +116,99 @@ When troubleshooting:
 - Suggest preventive measures for the future
 
 You proactively identify potential issues with configurations and suggest improvements based on best practices from the gravitational wave data analysis community.
+
+## Examples
+
+### Setting up an analysis on GW150914 using public data
+
+This example shows how to set up a simple set of analyses on public data, which is the default way to use asimov unless you have access to LVK computing resources and proprietary data.
+
+In this first step we create a new asimov project and apply the standard PE production and prior configurations:
+```
+asimov init <project_name>
+asimov apply -f https://git.ligo.org/asimov/data/-/raw/gwosc/defaults/production-pe.yaml?ref_type=heads
+asimov apply -f https://git.ligo.org/asimov/data/-/raw/gwosc/defaults/production-pe-priors.yaml?ref_type=heads
+```
+
+Then we add the GW150914 event to the project using the pre-defined event configuration:
+```
+asimov apply -f https://git.ligo.org/asimov/data/-/raw/gwosc/events/gwtc-2-1/GW150914_095045.yaml
+```
+
+Now we add the various stages of the analysis workflow, starting with the data download. We make a standard data download blueprint:
+```
+kind: analysis
+name: get-data
+pipeline: gwdata
+download:
+  - frames
+file length: 4096
+```
+we save that as `get-data.yaml` and then apply it **with the `--event` flag to specify which event this analysis applies to**:
+```
+asimov apply -f get-data.yaml --event GW150914_095045
+```
+
+**Important**: The `--event` flag is required when applying analysis blueprints (kind: analysis) so asimov knows which event in the ledger to attach the analysis to. Event and production configuration blueprints (like the defaults and event YAMLs from the data repository) do not require this flag.
+
+Next we need to set up the bayeswave job to calculate the PSD of the noise under the data.
+Most parameter estimation jobs will depend on this, and you should always run it unless the user specifies otherwise.
+We create a bayeswave blueprint like this:
+```
+kind: analysis
+name: generate-psd
+pipeline: bayeswave
+needs:
+   - get-data
+comment: Generate an on-source PSD using Bayeswave
+```
+We save that as `generate-psd.yaml` and apply it **with the `--event` flag to specify which event this analysis applies to**:
+```
+asimov apply -f generate-psd.yaml --event GW150914_095045
+```
+
+Finally we set up the bilby parameter estimation job itself.
+This step should be replaced with another pipeline, like LALInference or RIFT if that's what the user specifies.
+By default we use the blueprint here: https://git.ligo.org/asimov/data/-/raw/gwosc/analyses/bilby-bbh/analysis_bilby_IMRPhenomXPHM-SpinTaylor.yaml
+however the directory here has settings for using other waveform approximants as well: https://git.ligo.org/asimov/data/-/tree/gwosc/analyses/bilby-bbh?ref_type=heads
+
+We apply the bilby analysis like this, **again using `--event` to specify the target event**:
+```
+asimov apply -f https://git.ligo.org/asimov/data/-/raw/gwosc/analyses/bilby-bbh/analysis_bilby_IMRPhenomXPHM-SpinTaylor.yaml --event GW150914_095045
+```
+
+At this point the project is fully configured and ready to run.
+
+To start the workflow we use:
+```
+asimov manage build
+```
+This step creates the ini files which are used by the underlying pipeline tools.
+Only the analyses which are ready to run will be created, so at the beginning that's just `get-data`, and it will be written into a directory within the `checkouts` folder.
+
+**Before submitting jobs**, ensure HTCondor is running. On shared computing clusters (like LIGO Data Grid or OSG), condor is typically already running. However, on personal machines or laptops, you may need to start the condor daemons first:
+```
+condor_master
+```
+You can verify condor is running with `condor_q` - if it shows an error about failing to connect to the schedd, condor is not running and needs to be started.
+
+Note: On personal machines, `condor_master` may require root/sudo privileges depending on your HTCondor configuration. If you see permission errors (e.g., cannot open log files in `/var/log/condor/`), you may need to either:
+- Run with `sudo condor_master`, or
+- Configure HTCondor with a personal condor setup that uses user-writable directories
+
+Once condor is running, submit the jobs to the cluster with:
+```
+asimov manage submit
+```
+
+Jobs will normally take several hours to days to complete depending on the analysis type and computing resources available.
+Asimov can automatically start subsequent stages of the workflow as earlier stages complete if you run
+```
+asimov start
+```
+
+You can check their status by running 
+```
+asimov monitor
+```
+which will report the status of all jobs in the project.
