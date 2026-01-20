@@ -1,0 +1,29 @@
+# Sensitive files
+**/.credentials.json
+**/credentials.json
+**/secrets.json
+
+# Cache and temporary files
+**/cache/
+**/debug/
+**/downloads/
+**/file-history/
+**/session-env/
+**/shell-snapshots/
+**/todos/
+**/projects/
+**/statsig/
+**/telemetry/
+**/ide/
+**/.DS_Store
+
+# Runtime files
+**/history.jsonl
+**/stats-cache.json
+**/*.log
+
+# Plans (typically project-specific)
+**/plans/
+
+# Plugin marketplaces (can be re-downloaded)
+**/plugins/marketplaces/

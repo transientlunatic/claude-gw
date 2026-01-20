@@ -1,0 +1,126 @@
+name: Validate Configuration
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    name: Validate Claude Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install GNU Stow
+        run: sudo apt-get update && sudo apt-get install -y stow
+
+      - name: Validate directory structure
+        run: |
+          echo "Checking required directories..."
+          test -d claude/.claude || { echo "Error: claude/.claude directory missing"; exit 1; }
+          echo "✓ Directory structure is valid"
+
+      - name: Check for sensitive files
+        run: |
+          echo "Checking for sensitive files that should not be committed..."
+
+          SENSITIVE_FILES=(
+            "credentials.json"
+            ".credentials.json"
+            "secrets.json"
+          )
+
+          FOUND_SENSITIVE=false
+          for file in "${SENSITIVE_FILES[@]}"; do
+            if find claude -name "$file" | grep -q .; then
+              echo "Error: Found sensitive file: $file"
+              find claude -name "$file"
+              FOUND_SENSITIVE=true
+            fi
+          done
+
+          if [ "$FOUND_SENSITIVE" = true ]; then
+            echo "Please remove sensitive files before committing"
+            exit 1
+          fi
+
+          echo "✓ No sensitive files found"
+
+      - name: Test stow dry-run
+        run: |
+          echo "Testing stow configuration with dry-run..."
+          stow --simulate -v -t /tmp/test-install claude
+          echo "✓ Stow configuration is valid"
+
+      - name: Validate JSON files
+        run: |
+          echo "Validating JSON files..."
+
+          JSON_FILES=$(find claude -name "*.json" -type f 2>/dev/null || true)
+
+          if [ -z "$JSON_FILES" ]; then
+            echo "No JSON files found to validate"
+            exit 0
+          fi
+
+          INVALID_JSON=false
+          for file in $JSON_FILES; do
+            echo "Checking: $file"
+            if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
+              echo "Error: Invalid JSON in $file"
+              INVALID_JSON=true
+            fi
+          done
+
+          if [ "$INVALID_JSON" = true ]; then
+            exit 1
+          fi
+
+          echo "✓ All JSON files are valid"
+
+      - name: Validate agent files
+        run: |
+          echo "Validating agent files..."
+
+          if [ ! -d claude/.claude/agents ]; then
+            echo "No agents directory found, skipping validation"
+            exit 0
+          fi
+
+          AGENT_FILES=$(find claude/.claude/agents -name "*.md" -type f 2>/dev/null || true)
+
+          if [ -z "$AGENT_FILES" ]; then
+            echo "No agent files found"
+            exit 0
+          fi
+
+          for file in $AGENT_FILES; do
+            echo "Found agent: $(basename $file)"
+            # Check if file is not empty
+            if [ ! -s "$file" ]; then
+              echo "Warning: Agent file is empty: $file"
+            fi
+          done
+
+          echo "✓ Agent files validated"
+
+      - name: Summary
+        run: |
+          echo "Validation Summary"
+          echo "=================="
+          echo "Repository structure: ✓"
+          echo "Stow configuration: ✓"
+          echo "Security check: ✓"
+
+          if [ -d claude/.claude/agents ]; then
+            AGENT_COUNT=$(find claude/.claude/agents -name "*.md" -type f 2>/dev/null | wc -l || echo "0")
+            echo "Agents found: $AGENT_COUNT"
+          fi
+
+          if [ -d claude/.claude/plugins ]; then
+            echo "Plugins directory: ✓"
+          fi
