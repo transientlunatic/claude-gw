@@ -6,6 +6,7 @@ This repository keeps Claude CLI configurations under version control using GNU 
 
 This repository tracks:
 - **Custom agents** (`~/.claude/agents/`)
+- **Custom skills** (`~/.claude/skills/`)
 - **Plugin configurations** (`~/.claude/plugins/known_marketplaces.json`)
 
 ### What's Excluded
@@ -87,6 +88,7 @@ claude-gw/
 ├── claude/              # Stow package directory
 │   └── .claude/         # Mirrors ~/.claude structure
 │       ├── agents/      # Custom Claude agents
+│       ├── skills/      # Custom Claude skills
 │       └── plugins/     # Plugin configurations
 ├── install.sh           # Setup script
 ├── sync-from-system.sh  # Sync from ~/.claude to repo

@@ -24,6 +24,7 @@ mkdir -p "$DEST_DIR"
 # List of files/directories to sync (excluding sensitive and cache data)
 SYNC_ITEMS=(
     "agents"
+    "skills"
     "plugins/known_marketplaces.json"
 )
 
