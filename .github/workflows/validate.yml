@@ -53,6 +53,7 @@ jobs:
       - name: Test stow dry-run
         run: |
           echo "Testing stow configuration with dry-run..."
+          mkdir -p /tmp/test-install
           stow --simulate -v -t /tmp/test-install claude
           echo "✓ Stow configuration is valid"
 
