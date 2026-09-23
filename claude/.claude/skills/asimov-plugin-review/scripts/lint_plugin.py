@@ -225,6 +225,18 @@ class MetaPathVisitor(ast.NodeVisitor):
     def visit_Call(self, node):
         if isinstance(node.func, ast.Attribute) and node.func.attr in {"get", "setdefault", "pop"}:
             self._record(node)
+        # Mutating dict methods change the ledger just as item assignment
+        # does: setdefault/pop at the keyed path, update/clear at the
+        # container's path.
+        if isinstance(node.func, ast.Attribute) and self._base_name(node.func) not in self.copies:
+            if node.func.attr in {"setdefault", "pop"}:
+                path = self.resolve(node)
+            elif node.func.attr in {"update", "clear", "popitem"}:
+                path = self.resolve(node.func.value)
+            else:
+                path = None
+            if path:
+                self.writes.append((path, node.lineno))
         self.generic_visit(node)
 
 
@@ -283,7 +295,7 @@ def check_python(path, relative, source, findings, pipeline_names):
                     if alias.name in SCHEDULER_CLASSES:
                         findings.append(
                             Finding(
-                                "AP-SCHED-002",
+                                "AP-SCHED-006",
                                 "SMELL",
                                 relative,
                                 node.lineno,

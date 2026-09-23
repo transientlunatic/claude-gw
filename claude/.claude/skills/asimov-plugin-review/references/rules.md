@@ -52,7 +52,7 @@ query/delete`, and the monitor state machine (`asimov.monitor_states`).
 - **AP-SCHED-005 BLOCKER**: polls job status itself (loops, sleeps, parses
   scheduler output) instead of relying on the monitor loop calling
   `detect_completion()` and the state handlers.
-- **AP-SCHED-006 SMELL**: branches on scheduler type to express a resource
+- **AP-SCHED-006 SMELL [lint]**: branches on scheduler type to express a resource
   (such as GPUs) that `JobDescription` can't express generically. Acceptable
   only with a comment linking the upstream issue (currently
   etive-io/asimov#161) and with no scheduler-specific key leaking into the

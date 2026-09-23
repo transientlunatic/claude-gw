@@ -73,7 +73,7 @@ finds the mechanical candidates.
    values are handled as per-detector (AP-LEDGER-008), and that scientific
    quantities aren't silently defaulted (AP-LEDGER-009).
 
-8. **Check the non-lint rules** in `references/rules.md` one by one (SCHED-004/005/006,
+8. **Check the non-lint rules** in `references/rules.md` one by one (SCHED-004/005/006/007,
    LEDGER-008/009/010, CORE-002/009/010/012/013, TMPL-001/004, BP-002,
    PKG-006, NORM-001/002). Record which ones you checked.
 

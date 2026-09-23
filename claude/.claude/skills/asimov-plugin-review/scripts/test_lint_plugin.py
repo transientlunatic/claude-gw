@@ -53,6 +53,8 @@ def plugin(tmp_path):
                 kwargs = dict(self.production.meta.get("sampler") or {})
                 kwargs["checkpoint"] = "here"
                 self.production.meta["bad_rendered"] = "text"
+                self.production.meta.setdefault("bad_counter", 0)
+                kwargs.setdefault("seed", 1)
 
             def collect_assets(self):
                 return {"posterior": "samples.h5"}
@@ -131,7 +133,9 @@ def test_ledger_rules(plugin):
 def test_writes_to_ledger_but_not_to_copies(plugin):
     report = lint_plugin.lint(plugin, ASIMOV_SRC)
     writes = by_rule(report, "AP-LEDGER-007")
-    assert [f["line"] for f in writes] == [16]
+    # meta["bad_rendered"] = ... and meta.setdefault(...); the writes and
+    # setdefault on the dict() copy are not ledger writes.
+    assert [f["line"] for f in writes] == [16, 17]
 
 
 def test_template_rules(plugin):
