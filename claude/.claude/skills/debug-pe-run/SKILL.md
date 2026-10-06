@@ -1,14 +1,17 @@
 ---
 name: debug-pe-run
-description: Debug a bilby PE run in the GWTC-4.0 threshold project. Use when asked to investigate, check, or diagnose a parameter estimation run for a specific event and analysis.
+description: Debug a bilby parameter-estimation (PE) run managed by asimov. Use when asked to investigate, check, or diagnose a PE run for a specific event and analysis.
 argument-hint: "[event e.g. GW230615_160825] [analysis e.g. bilby-IMRPhenomXPHM-SpinTaylor-3]"
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
 Debug the PE run for $ARGUMENTS.
 
-The working directory for runs is:
-`project/working/<event>/<analysis>/`
+## Setup
+
+Locate the asimov project root (the directory containing `.asimov/ledger.yml`; call it `$PROJECT`). Runs live in `$PROJECT/working/<event>/<analysis>/` by default; if that is missing, check the analysis' `rundir` in the ledger (read-only: `asimov show <event>`).
+
+Find the Python environment with `asimov`, `h5py` and `bilby` (e.g. the active environment, or ask the user). Below, `python` and `asimov` mean that environment's executables. Where a step needs a site-specific location (e.g. the data-quality web report), ask the user if you can't find it.
 
 Work through the following steps in order, reporting findings at each stage before moving to the next.
 
@@ -39,34 +42,33 @@ Check `submit/dag_*.dagman.out` (tail last ~30 lines):
 **Prior railing**: Check the completed chain posteriors. Extract max/percentiles for chirp_mass and mass_ratio using:
 ```python
 import h5py, numpy as np
-fname = "project/working/<event>/<analysis>/result/<label>_par0_result.hdf5"
+fname = "<rundir>/result/<label>_par0_result.hdf5"  # any completed chain
 with h5py.File(fname, 'r') as f:
     mc = f['posterior']['chirp_mass'][:]
     q  = f['posterior']['mass_ratio'][:]
 print(f"chirp_mass: max={mc.max():.1f}, 99th={np.percentile(mc,99):.1f}, median={np.median(mc):.1f}")
 print(f"mass_ratio: min={q.min():.3f}, 1st={np.percentile(q,1):.3f}")
 ```
-Use `/home/daniel/gwtc4/environment/bin/python` for this.
+Run this with the environment's `python`.
 If the posterior max is within ~5 Msun of the prior boundary, the prior is genuinely railing and needs expanding.
 
 **Corrupted resume file**: Appears as a WARNING at the start of the `.err` file. Dynesty restarts from scratch — not a failure, just slower.
 
 ## Step 4 — Check spectrograms for glitches
 
-The spectrogram report is at:
-`/data/www.astro/daniel/asimov/gwtc4-threshold/<event>/get-data/index.html`
+Find the data-quality report produced by the project's get-data/data-quality analysis (an `index.html` under the project's web directory, typically `<webroot>/<event>/get-data/index.html`; check the analysis' `pages`/`webroot` settings or ask the user).
 
-Images are base64-embedded. Extract and view them:
+If the images are base64-embedded, extract and view them:
 ```python
 from bs4 import BeautifulSoup
 import base64
-with open('/data/www.astro/daniel/asimov/gwtc4-threshold/<event>/get-data/index.html') as f:
+with open('<path-to-report>/index.html') as f:
     soup = BeautifulSoup(f, 'html.parser')
 for i, img in enumerate(soup.find_all('img')):
     data = img['src'].split(',', 1)[1]
-    with open(f'/tmp/spectrogram_{i}.png', 'wb') as out:
+    with open(f'spectrogram_{i}.png', 'wb') as out:  # write to a scratch dir
         out.write(base64.b64decode(data))
-# Image 0 = H1, Image 1 = L1
+# Typically image 0 = H1, image 1 = L1; check the report captions
 ```
 Then use the Read tool to view both images.
 
@@ -88,30 +90,27 @@ Then use the Read tool to view both images.
 
 ## Step 6 — Implementing the fix
 
-**Asimov commands** (always run from `project/` directory, using `/home/daniel/gwtc4/environment/bin/asimov`):
+**Asimov commands** (always run from `$PROJECT`):
 
 ```bash
 # Cancel an analysis
 asimov production set <event> <analysis-name> -s cancelled
 
 # Update event blueprint
-asimov apply -f ../blueprints/events/<event>.yaml --update
+asimov apply -f <blueprints>/events/<event>.yaml --update
 
 # Add new analysis (auto-increments suffix)
-asimov apply --iterate -f ../blueprints/bilby-IMRPhenomXPHM-SpinTaylor.yaml --event <event>
+asimov apply --iterate -f <blueprints>/<analysis-blueprint>.yaml --event <event>
 ```
 
-**Critical notes on the event blueprint** (`blueprints/events/<event>.yaml`):
+**Critical notes on the event blueprint** (`<blueprints>/events/<event>.yaml`):
 - The key for post-trigger window is `post trigger time` (NOT `post trigger duration`) — the latter is silently ignored.
 - The `segment start` stored in the ledger is cosmetic (hardcoded to `event_time - segment_length + 2`); it does NOT reflect `post trigger time`.
-- The `post trigger time` value flows into the bilby.ini via the template at `asimov/configs/bilby.ini`.
+- The `post trigger time` value flows into the bilby.ini via the project's bilby config template (`bilby.ini`).
 
-**Never manually edit the ledger** (`project/.asimov/ledger.yml`).
+**Never manually edit the ledger** (`$PROJECT/.asimov/ledger.yml`).
 
-**Standard prior ranges** for this project:
-- `chirp_mass`: typically `[35, 180]`; expand upper bound if posterior rails
-- `mass_ratio`: `[0.05, 1.0]` standard
-- Numbered suffixes (`-2`, `-3`, …) on blueprint names = rerun attempts
+**Prior ranges**: read the analysis' configured priors from its blueprint/ledger rather than assuming defaults. Expand the chirp-mass upper bound if the posterior rails against it. Numbered suffixes (`-2`, `-3`, …) on analysis names are usually rerun attempts (from `--iterate`).
 
 ## What to report
 
