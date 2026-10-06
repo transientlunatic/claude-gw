@@ -1,0 +1,18 @@
+{
+  "name": "gw-analysis",
+  "version": "0.1.0",
+  "description": "Skills and agents for gravitational-wave data analysis: asimov project management and plugin review, PE run debugging, and LIGO aLOG digests.",
+  "author": {
+    "name": "Daniel Williams",
+    "url": "https://github.com/transientlunatic"
+  },
+  "homepage": "https://github.com/transientlunatic/claude-gw",
+  "repository": "https://github.com/transientlunatic/claude-gw",
+  "license": "MIT",
+  "keywords": ["gravitational-waves", "ligo", "asimov", "bilby", "parameter-estimation"],
+  "skills": "./claude/.claude/skills",
+  "agents": [
+    "./claude/.claude/agents/asimov-project-manager.md",
+    "./claude/.claude/agents/asimov-plugin-reviewer.md"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "transientlunatic",
+  "owner": {
+    "name": "Daniel Williams",
+    "url": "https://github.com/transientlunatic"
+  },
+  "plugins": [
+    {
+      "name": "gw-analysis",
+      "source": "./",
+      "description": "Skills and agents for gravitational-wave data analysis: asimov project management and plugin review, PE run debugging, and LIGO aLOG digests.",
+      "version": "0.1.0",
+      "license": "MIT",
+      "keywords": [
+        "gravitational-waves",
+        "ligo",
+        "asimov",
+        "bilby"
+      ]
+    }
+  ],
+  "metadata": {
+    "description": "Gravitational-wave data analysis tooling for Claude Code."
+  }
+}
