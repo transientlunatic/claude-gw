@@ -1,5 +1,25 @@
 # Claude Configuration Repository
 
+## Install as a Claude Code plugin
+
+This repository is also a Claude Code plugin marketplace. To use the skills and
+agents without Stow:
+
+```
+/plugin marketplace add transientlunatic/claude-gw
+/plugin install gw-analysis@transientlunatic
+```
+
+The `gw-analysis` plugin provides:
+
+- **Skills**: `asimov-plugin-review`, `debug-pe-run`, `ligo-alog-digest`
+- **Agents**: `asimov-project-manager`, `asimov-plugin-reviewer`
+
+Manifests live in [.claude-plugin/](.claude-plugin/) and point at
+`claude/.claude/`, so the plugin and the Stow setup below share one source of
+truth. Validate changes with `claude plugin validate .`. Bump `version` in both
+manifests when releasing.
+
 This repository keeps Claude CLI configurations under version control using GNU Stow for portable, symlink-based synchronization.
 
 ## What Gets Synced

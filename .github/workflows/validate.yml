@@ -50,6 +50,14 @@ jobs:
 
           echo "✓ No sensitive files found"
 
+      - name: Validate plugin manifests
+        run: |
+          python3 -m json.tool .claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate .
+          echo "✓ Plugin manifests are valid"
+
       - name: Test stow dry-run
         run: |
           echo "Testing stow configuration with dry-run..."
