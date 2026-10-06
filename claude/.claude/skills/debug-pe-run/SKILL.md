@@ -2,7 +2,7 @@
 name: debug-pe-run
 description: Debug a bilby parameter-estimation (PE) run managed by asimov. Use when asked to investigate, check, or diagnose a PE run for a specific event and analysis.
 argument-hint: "[event e.g. GW230615_160825] [analysis e.g. bilby-IMRPhenomXPHM-SpinTaylor-3]"
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash(wc:*), Bash(ls:*), Bash(tail:*), Bash(asimov show:*)
 ---
 
 Debug the PE run for $ARGUMENTS.
@@ -89,6 +89,8 @@ Then use the Read tool to view both images.
 | Glitch before merger (pre-trigger) | Different segment or flag as contaminated |
 
 ## Step 6 — Implementing the fix
+
+The commands below change project state and are deliberately not pre-approved: explain what you intend to run and let the user approve each one.
 
 **Asimov commands** (always run from `$PROJECT`):
 
